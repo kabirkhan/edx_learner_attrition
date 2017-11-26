@@ -99,3 +99,9 @@ ENV/
 
 # mypy
 .mypy_cache/
+
+# data
+data/*.csv
+
+# setup credentials
+setup.cfg
