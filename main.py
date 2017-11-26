@@ -11,7 +11,8 @@ import sys
 @click.option(
     '--from-checkpoint',
     help='If True, pull data from csv files in the /data folder. False by default',
-    is_flag=True
+    is_flag=True,
+    default=False
 )
 def run(course_id, from_checkpoint):
 
