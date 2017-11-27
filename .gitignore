@@ -105,3 +105,6 @@ data/**/*.csv
 
 # setup credentials
 setup.cfg
+
+# vscode
+.vscode/**/*

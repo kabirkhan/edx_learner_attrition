@@ -30,11 +30,11 @@ def course_week(date_string, course_start_date):
 
 def save_df_to_csv(dataframe, name, course_id):
     """
-    Save a dataframe to a csv file in the data/{course_id} directory
+    Save a dataframe to a csv file in the data/{course_id}/ directory
     """
     path = '{}/{}/{}.csv'.format(get_data_path(), course_id, name)
     create_directory_safe(path)
-    dataframe.to_csv(path)
+    dataframe.to_csv(path, index=False)
 
 
 def get_data_path():
