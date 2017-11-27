@@ -15,7 +15,6 @@ def add_neg_data_points(course_id, features, from_checkpoint=False):
     """
     Add negative data points to a features dataframe
     """
-    print('DATA LENGTH: ', len(features))
     if from_checkpoint:
         def get_data_from_file(name):
             return pd.read_csv("{}/{}/{}.csv".format(get_data_path(), course_id, name))
@@ -56,13 +55,10 @@ def add_neg_data_points(course_id, features, from_checkpoint=False):
         data = data.sort_values(['user_id', 'course_week']).reset_index(drop=True)
         data = data.fillna(0.0)
 
-        print('DATA LENGTH: ', len(data))
-
         LOG.info('Done')
         LOG.info('Calculating user dropped out next week.')
         data = calculate_drop_out_next_week(data)
         LOG.info('Done')
-        print('DATA LENGTH: ', len(data))
 
         LOG.info('Saving to csv...')
         save_df_to_csv(data, 'model_data', course_id)
