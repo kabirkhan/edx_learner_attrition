@@ -7,7 +7,7 @@ from pipeline.util import *
 
 LOG_CONFIG = {'root':{'handlers':('console', 'file'), 'level':'DEBUG'}}
 
-FORMAT = '%(asctime)s - %(name)s:   %(message)s'
+FORMAT = '%(name)s:   %(message)s'
 logging.basicConfig(format=FORMAT, level=logging.INFO)
 LOG = logging.getLogger(__name__)
 
@@ -24,9 +24,9 @@ def build_features(course_id,
     """
 
     if from_checkpoint:
-        def get_data_from_file(name):            
-            return pd.read_csv("{}/{}-{}.csv".format(get_data_path(), course_id, name))
-        features = get_data_from_file('features')
+        def get_data_from_file(name):
+            return pd.read_csv("{}/{}/{}.csv".format(get_data_path(), course_id, name))
+        data = get_data_from_file('features')
     else:
 
         LOG.info('Building features...')
@@ -103,10 +103,10 @@ def build_features(course_id,
             'user_completed_week'
         ]]
 
-        print('FEATURES: ', features.describe())
-        data.to_csv('{}/features.csv'.format(get_data_path()), index=False)
+        LOG.info(data.columns)
+        save_df_to_csv(data, 'features', course_id)
 
-    return features
+    return data
 
 
 def _build_events_features(events_df):

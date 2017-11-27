@@ -2,6 +2,7 @@
 Utility functions for the pipeline
 """
 import os
+import errno
 import sys
 import math
 from datetime import datetime
@@ -27,5 +28,32 @@ def course_week(date_string, course_start_date):
     return course_week
 
 
+def save_df_to_csv(dataframe, name, course_id):
+    """
+    Save a dataframe to a csv file in the data/{course_id} directory
+    """
+    path = '{}/{}/{}.csv'.format(get_data_path(), course_id, name)
+    create_directory_safe(path)
+    dataframe.to_csv(path)
+
+
 def get_data_path():
+    """
+    Return the path to the data folder
+    """
     return '{}/data'.format(os.path.dirname(os.path.realpath(sys.argv[0])))
+
+
+def create_directory_safe(path):
+    """
+    Safely create a directory
+    """
+    try:
+        if '.' in path:
+            directory = os.path.dirname(path)
+        else:
+            directory = path
+        os.makedirs(directory)
+    except OSError as err:
+        if err.errno != errno.EEXIST:
+            raise
