@@ -101,10 +101,13 @@ ENV/
 .mypy_cache/
 
 # data
-data/**/*.csv
+data/**/**
 
 # setup credentials
 setup.cfg
 
 # vscode
 .vscode/**/*
+
+# pycharm
+.idea

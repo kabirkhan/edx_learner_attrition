@@ -34,16 +34,17 @@ def query_data(course_id, from_checkpoint=False):
         course_dates = get_data_from_file('course_dates')
         course_start_date, course_end_date = get_course_dates(course_dates)
     else:
-        DB_USER = parser.get('database', 'user')
-        DB_PASS = parser.get('database', 'password')
-        DB_SERVER = parser.get('database', 'wwl_data_warehouse_server')
+        DB_USER = os.environ['DB_USER']
+        DB_PASS = os.environ['DB_PASSWORD']
+        DB_SERVER = os.environ['DB_SERVER']
         CONN = pymssql.connect(DB_SERVER, DB_USER, DB_PASS)
         ROOT_PATH = os.path.dirname(os.path.realpath(sys.argv[0]))
 
         EVENTS_QUERY = """
         SELECT
-            Username, UserId, EventType, EventSource, CourseId,
-            EventGrade, EventAttempts, EventMaxGrade, EventSub_Correct, EventTime
+            UserId, EventType, EventSource, CourseId,
+            EventGrade, EventAttempts, EventMaxGrade, 
+            EventSub_Correct, EventTime
         FROM [EdxStaging].[edx].[Edx_DailyEvents]
         WHERE (Host = 'courses.edx.org' and CourseId = '{}')
         AND UserId IS NOT NULL
@@ -52,8 +53,7 @@ def query_data(course_id, from_checkpoint=False):
         FORUMS_QUERY = """
         SELECT [Title]
             ,[CommentText]
-            ,[AuthorId]
-            ,[AuthorUserName]
+            ,[AuthorId]            
             ,[VotesUpCount]
             ,[VotesDownCount]
             ,[VotesCount]
@@ -128,19 +128,19 @@ def query_data(course_id, from_checkpoint=False):
         LOG.info('Cleaning up raw sql data...')
 
         events.columns = [
-            'username', 'user_id', 'event_type', 'event_source', 'course_id',
+            'user_id', 'event_type', 'event_source', 'course_id',
             'event_grade', 'event_attempts', 'event_max_grade', 'event_sub_correct',
             'event_time'
         ]
         events['user_id'] = events['user_id'].astype('int64')
-        events.head()
+        print(events.head())
 
         forums.columns = [
-            'title', 'comment_text', 'author_id', 'username', 'votes_up', 'votes_down',
+            'title', 'comment_text', 'author_id', 'votes_up', 'votes_down',
             'votes_count', 'votes_point', 'comment_count', 'parent_id', 'comment_thread_id',
             'course_id', 'text_type', 'update_timestamp'
         ]
-        forums.head()
+        print(forums.head())
 
         LOG.info('Done')
 
@@ -152,6 +152,7 @@ def query_data(course_id, from_checkpoint=False):
 
         LOG.info('Filtering events')
         events = filter_events(events, course_start_date)
+        print(events.head())
         LOG.info('Done')
 
         LOG.info('Saving data to csv...')
@@ -189,8 +190,7 @@ def filter_events(events_df, course_start_date):
 
     events_to_capture = [
         'problem_check',
-        'play_video',
-        'book'
+        'play_video'
     ]
 
     events_sub = events_df.loc[events_df['event_type'].isin(events_to_capture),:]
@@ -209,6 +209,5 @@ def filter_events(events_df, course_start_date):
         lambda date_string: course_week(date_string, course_start_date)
     )
     events_.loc[events_['event_sub_correct'] == 'true', 'event_type'] = 'problem_check:correct'
-    events_ = events_.set_index('user_id')
 
     return events_
