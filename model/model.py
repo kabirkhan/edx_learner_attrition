@@ -4,7 +4,7 @@ import pandas as pd
 import keras
 from keras.models import Sequential, load_model
 from keras.layers import Dense, Dropout
-from keras.wrappers.scikit_learn import KerasClassifier
+from keras.utils import plot_model
 from sklearn import metrics
 from sklearn.preprocessing import MinMaxScaler
 from pipeline.util import *
@@ -30,7 +30,7 @@ def get_data(past_course_ids, current_course_id):
         if train is None:
             train = course_run_data
         else:
-            train.append(course_run_data)
+            train = train.append(course_run_data)
 
     print('Training data done.')
 
@@ -66,6 +66,9 @@ def fit_score_predict(course_id, from_checkpoint=False):
     past_course_ids = []
     for i in range(3):
         past_course_ids.append('Microsoft+DAT206x+{}T2017'.format(i + 1))
+        past_course_ids.append('Microsoft+DAT207x+{}T2017'.format(i + 1))
+    past_course_ids.append('Microsoft+DAT206x+4T2017')
+
 
     print('GETTING DATA: ', past_course_ids)
     X_train, y_train, X_test, y_test = get_data(past_course_ids, course_id)
@@ -92,9 +95,9 @@ def fit_score_predict(course_id, from_checkpoint=False):
     print('Evaluating model on data for course: {}'.format(course_id))
 
     score = model.evaluate(X_test, y_test, batch_size)
+    print('Score before softmax', score)
+
     preds = model.predict(X_test, batch_size)
-    print('Accuracy: ', score)
-    print(preds)
 
     # HEAVILY penalize false negatives due to the data imbalance of 0 classes
     y_labels = y_test.argmax(axis=1)
@@ -109,8 +112,43 @@ def fit_score_predict(course_id, from_checkpoint=False):
 
     conf_matrix = metrics.confusion_matrix(y_test.argmax(axis=1), final_preds)
 
-    print('FINAL RESULTS: ')
-    print(conf_matrix, conf_matrix / len(y_test))
-    print('Accuracy: ', score)
+    tn, fp, fn, tp = conf_matrix.ravel()
+    total = len(y_test)
+    final_acc = (tn + tp) / total
+    print('Accuracy after softmax', final_acc)
 
-    return (final_preds, score, conf_matrix)
+    test_data_orig = pd.read_csv('{}/{}/model_data.csv'.format(get_data_path(), course_id))
+    test_data_orig['predicted_user_dropped_out_next_week'] = final_preds
+
+    pred_pivot = _create_pivot_table(test_data_orig, 'predicted_user_dropped_out_next_week')
+    real_pivot = _create_pivot_table(test_data_orig, 'user_dropped_out_next_week')
+
+    save_df_to_file(pred_pivot, 'predicted_dropouts', course_id, type='excel')
+    save_df_to_file(real_pivot, 'real_dropouts', course_id, type='excel')
+    save_df_to_file(test_data_orig, 'model_data_with_preds', course_id)
+
+    print('Model Score before softmax: ', score)
+    print('Accuracy after softmax', final_acc)
+    print('CONFUSION MATRIX: ')
+    print(conf_matrix)
+    print(conf_matrix / len(y_test))
+
+    return (final_preds, final_acc, conf_matrix)
+
+def _create_pivot_table(df, val_col):
+    df_pivot = df.pivot_table(
+        index='user_id', columns=['course_week'], values=val_col, fill_value=-1
+    )
+    df_colored = df_pivot.style.applymap(_cell_colors)
+    return df_colored
+
+def _cell_colors(s):
+    ret = 'background-color: {}'
+    if s == 0:
+        ret = ret.format('#228b22')
+    elif s == 1:
+        ret = ret.format('#dc143c')
+    else:
+        ret = ret.format('#d3d3d3')
+
+    return ret

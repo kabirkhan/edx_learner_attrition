@@ -28,13 +28,21 @@ def course_week(date_string, course_start_date):
     return course_week
 
 
-def save_df_to_csv(dataframe, name, course_id):
+def save_df_to_file(dataframe, name, course_id, type='csv'):
     """
     Save a dataframe to a csv file in the data/{course_id}/ directory
     """
-    path = '{}/{}/{}.csv'.format(get_data_path(), course_id, name)
-    create_directory_safe(path)
-    dataframe.to_csv(path, index=False)
+
+    path = '{}/{}/{}'.format(get_data_path(), course_id, name)
+
+    if type == 'excel':
+        path += '.xlsx'
+        create_directory_safe(path)
+        dataframe.to_excel(path)
+    else:
+        path += '.csv'
+        create_directory_safe(path)
+        dataframe.to_csv(path, index=False)
 
 
 def get_data_path():

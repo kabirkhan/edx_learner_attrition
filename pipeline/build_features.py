@@ -106,7 +106,7 @@ def build_features(course_id,
         ]]
 
         LOG.info(data.columns)
-        save_df_to_csv(data, 'features', course_id)
+        save_df_to_file(data, 'features', course_id)
 
     return data
 
