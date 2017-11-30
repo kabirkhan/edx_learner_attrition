@@ -63,7 +63,7 @@ def add_neg_data_points(course_id, features, from_checkpoint=False):
         LOG.info('Done')
 
         LOG.info('Saving to csv...')
-        save_df_to_csv(data, 'model_data', course_id)
+        save_df_to_file(data, 'model_data', course_id)
         LOG.info('Done')
 
     return data

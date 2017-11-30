@@ -156,11 +156,11 @@ def query_data(course_id, from_checkpoint=False):
         LOG.info('Done')
 
         LOG.info('Saving data to csv...')
-        save_df_to_csv(events, 'events', course_id)
-        save_df_to_csv(forums, 'forums', course_id)
-        save_df_to_csv(course_starts, 'course_starts', course_id)
-        save_df_to_csv(course_completions, 'course_completions', course_id)
-        save_df_to_csv(course_dates, 'course_dates', course_id)
+        save_df_to_file(events, 'events', course_id)
+        save_df_to_file(forums, 'forums', course_id)
+        save_df_to_file(course_starts, 'course_starts', course_id)
+        save_df_to_file(course_completions, 'course_completions', course_id)
+        save_df_to_file(course_dates, 'course_dates', course_id)
         LOG.info('Done')
 
     return (events, forums, course_starts, course_completions, course_start_date, course_end_date)
