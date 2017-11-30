@@ -37,7 +37,7 @@ def run(course_id, from_checkpoint):
     # data = pipeline.query_data(course_id, from_checkpoint=True)
     # features = pipeline.build_features(course_id, *data, from_checkpoint=True)
     # model_data = pipeline.add_neg_data_points(course_id, features, from_checkpoint=True)
-    preds, accuracy, confusion_matrix = pipeline.fit_score_predict(course_id, from_checkpoint=from_checkpoint)
+    preds, accuracy, confusion_matrix = pipeline.fit_score_predict(course_id, from_checkpoint=True)
     delta = datetime.now() - start
     end = round(delta.seconds / 60)
     print('Finished Pipeline for Course: {}. Run finished in {} minutes'.format(course_id, end))
