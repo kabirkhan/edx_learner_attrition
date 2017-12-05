@@ -38,7 +38,7 @@ def add_neg_data_points(course_id, features, from_checkpoint=False):
             last_active_week = user_rows.loc[:, 'user_last_active_week'].min()
             completed_week = user_rows.loc[:, 'user_completed_week'].min()
 
-            zero_course_weeks = [x for x in zero_course_weeks if x < last_active_week]
+            zero_course_weeks = [x for x in zero_course_weeks if (x < last_active_week and x > 0)]
 
             zero_rows_df = pd.DataFrame(
                 np.zeros((len(zero_course_weeks), len(data.columns))),
