@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import luigi
+from pipeline_v2.adl_luigi import ADLTarget
 
 
 class RawUserActivity(luigi.ExternalTask):
@@ -15,8 +16,7 @@ class RawUserActivity(luigi.ExternalTask):
         'events',
         'forums',
         'course_starts',
-        'course_completions',
-        'course_dates'
+        'course_completions'
     ]
 
     sql_query = ""
@@ -29,6 +29,14 @@ class RawUserActivity(luigi.ExternalTask):
             ))
 
         return out
+
+class CourseDatesTask(luigi.Task):
+    course_id = luigi.Parameter()
+
+    def output(self):
+        return ADLTarget('data/{course_id}/course_dates.csv'.format(course_id=self.course_id))
+
+    def run(self):
 
 
 if __name__ == "__main__":

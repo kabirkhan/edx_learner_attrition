@@ -23,7 +23,6 @@ def add_neg_data_points(course_id, features, from_checkpoint=False):
         LOG.info('Adding negative data points for course: {}'.format(course_id))
 
         data = features.copy()
-        data = data[data['course_week'] >= -1]
 
         user_ids = pd.unique(data['user_id'])
         course_weeks = set(pd.unique(data['course_week']))

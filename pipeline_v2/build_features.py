@@ -1,9 +1,10 @@
 from datetime import datetime, timedelta
 import luigi
 import pandas as pd
-from pipeline_v2.query_data import RawUserActivity
-from pipeline.util import get_data_path, course_week
+from pipeline_v2.query_data import RawUserActivity, CourseDatesTask
+from pipeline_v2.util import course_week, get_course_dates
 from textblob import TextBlob
+from pipeline_v2.adl_luigi import ADLTarget
 
 class BuildFeatures(luigi.Task):
     """
@@ -12,52 +13,40 @@ class BuildFeatures(luigi.Task):
     course_id = luigi.Parameter()
 
     def requires(self):
-        return RawUserActivity(self.course_id)
+        return RawUserActivity(self.course_id), CourseDatesTask(self.course_id)
 
     def output(self):
-        course_dates = pd.read_csv(self.input().get('course_dates').path)
-        course_start_date, _= self.get_course_dates(course_dates)
-
+        course_start_date, course_end_date = self._get_course_dates_from_input()
         current_course_week = course_week(datetime.utcnow(), course_start_date)
+
         return {
-            'features': luigi.LocalTarget('data/{}/week_{}/features.csv'.format(self.course_id, current_course_week)),
-            'course_dates': self.input().get('course_dates')
+            'features': ADLTarget('data/{}/week_{}/features.csv'.format(self.course_id, current_course_week), thread_count=1),
+            'course_dates': self.input()[1]
         }
 
     def run(self):
         """
         Build features dataframe 
         """
-        input = self.input()
+        input = self.input()[0]
 
         events = pd.read_csv(input.get('events').path)
         forums = pd.read_csv(input.get('forums').path)
         course_starts = pd.read_csv(input.get('course_starts').path)
         course_completions = pd.read_csv(input.get('course_completions').path)
         
-        course_dates = pd.read_csv(input.get('course_dates').path)
-        course_start_date, course_end_date = self.get_course_dates(course_dates)
+        course_start_date, course_end_date = self._get_course_dates_from_input()
 
         features = self.build_features(self.course_id, events, forums, course_starts, course_completions, course_start_date, course_end_date)
+        features = features[features['course_week'] >= 1]
         features_target = self.output().get('features')
-        features_target.makedirs()
-        features.to_csv(features_target.path, index=False)
+        with features_target.open(mode='w') as output:
+            features.to_csv(output, index=False)
 
-
-    def get_course_dates(self, course_dates_df):
-        """
-        Get the start and end dates for the course
-        """
-
-        def get_datetime_col(col_name):
-            """
-            Get column as a datetime object
-            """
-            return datetime.strptime(course_dates_df[col_name][0], '%Y-%m-%d')
-
-        course_start_date = get_datetime_col('CourseRunStartDate')
-        course_end_date = get_datetime_col('CourseRunEndDate')
-        return (course_start_date, course_end_date)
+    def _get_course_dates_from_input(self):
+        with self.input()[1].open() as course_dates_file:
+            course_dates = pd.read_csv(course_dates_file)
+            return get_course_dates(course_dates)
 
     def build_features(self, 
                        course_id,
@@ -66,96 +55,88 @@ class BuildFeatures(luigi.Task):
                        course_starts,
                        course_completions,
                        course_start_date,
-                       course_end_date,
                        from_checkpoint=False):
         """
         Build a features dataframe by aggregating events for (user, course_week)
         """
 
-        if from_checkpoint:
-            def get_data_from_file(name):
-                return pd.read_csv("{}/{}/{}.csv".format(get_data_path(), course_id, name))
+        # LOG.info('Building features...')
 
-            data = get_data_from_file('features')
-        else:
+        event_features = self._build_events_features(events)
+        event_features.columns = event_features.columns.get_level_values(0)
 
-            # LOG.info('Building features...')
+        forum_features = self._build_forum_features(forums, course_start_date)
+        # LOG.info('Done')
 
-            event_features = self._build_events_features(events)
-            event_features.columns = event_features.columns.get_level_values(0)
+        # LOG.info('Merging events features and forum features')
+        features = pd.merge(event_features, forum_features, how='left', on=['user_id', 'course_week'])
+        # LOG.info('Done')
+        print(features.columns)
+        print(features.head())
 
-            forum_features = self._build_forum_features(forums, course_start_date)
-            # LOG.info('Done')
+        features.columns = [
+            'course_week',
+            'user_id',
+            'num_video_plays',
+            'num_problems_incorrect',
+            'num_problems_correct',
+            'num_subsections_viewed',
+            'num_forum_posts',
+            'num_forum_votes',
+            'avg_forum_sentiment'
+        ]
 
-            # LOG.info('Merging events features and forum features')
-            features = pd.merge(event_features, forum_features, how='left', on=['user_id', 'course_week'])
-            # LOG.info('Done')
-            print(features.columns)
-            print(features.head())
+        # Merge features with course_starts and course_completions
+        # LOG.info('Merging features with coures starts and completions')
+        data = pd.merge(features, course_starts, how='inner', on='user_id')
+        data.columns = list(data.columns)[0:-1] + ['user_started_date_key']
+        data = pd.merge(data, course_completions, how='left', on='user_id')
+        data.columns = list(data.columns)[0:-1] + ['user_completed_date_key']
+        # LOG.info('Done.')
 
-            features.columns = [
-                'course_week',
-                'user_id',
-                'num_video_plays',
-                'num_problems_incorrect',
-                'num_problems_correct',
-                'num_subsections_viewed',
-                'num_forum_posts',
-                'num_forum_votes',
-                'avg_forum_sentiment'
-            ]
-
-            # Merge features with course_starts and course_completions
-            # LOG.info('Merging features with coures starts and completions')
-            data = pd.merge(features, course_starts, how='inner', on='user_id')
-            data.columns = list(data.columns)[0:-1] + ['user_started_date_key']
-            data = pd.merge(data, course_completions, how='left', on='user_id')
-            data.columns = list(data.columns)[0:-1] + ['user_completed_date_key']
-            # LOG.info('Done.')
-
-            def fill_date_column(column_name):
-                """
-                Convert string column with dates formatted like 20170101 into
-                datetime objects
-                """
-                data[column_name] = data[column_name].astype(str)
-                data.loc[data[column_name] == 'nan', column_name] = datetime.strftime(
-                    course_start_date - timedelta(days=8), '%Y%m%d'
-                )
-                return data
-
-            data = fill_date_column('user_started_date_key')
-            data = fill_date_column('user_completed_date_key')
-
-            data['user_started_week'] = data['user_started_date_key'].apply(
-                lambda x: course_week(x, course_start_date)
+        def fill_date_column(column_name):
+            """
+            Convert string column with dates formatted like 20170101 into
+            datetime objects
+            """
+            data[column_name] = data[column_name].astype(str)
+            data.loc[data[column_name] == 'nan', column_name] = datetime.strftime(
+                course_start_date - timedelta(days=8), '%Y%m%d'
             )
-            data['user_completed_week'] = data['user_completed_date_key'].apply(
-                lambda x: course_week(x, course_start_date)
-            )
+            return data
 
-            last_active_week = data.sort_values('course_week').groupby('user_id').last()[['course_week']]
-            last_active_week.columns = ['user_last_active_week']
-            last_active_week = last_active_week.reset_index()
-            data = pd.merge(data, last_active_week, how='left', on='user_id')
+        data = fill_date_column('user_started_date_key')
+        data = fill_date_column('user_completed_date_key')
 
-            data['num_problems_attempted'] = data['num_problems_incorrect'] + data['num_problems_correct']
-            data = data[[
-                'user_id',
-                'course_week',
-                'num_video_plays',
-                'num_problems_attempted',
-                'num_problems_correct',
-                'num_subsections_viewed',
-                'num_forum_posts',
-                'num_forum_votes',
-                'avg_forum_sentiment',
-                'user_started_week',
-                'user_last_active_week',
-                'user_completed_week'
-            ]]
+        data['user_started_week'] = data['user_started_date_key'].apply(
+            lambda x: course_week(x, course_start_date)
+        )
+        data['user_completed_week'] = data['user_completed_date_key'].apply(
+            lambda x: course_week(x, course_start_date)
+        )
 
-            # LOG.info(data.columns)
+        last_active_week = data.sort_values('course_week').groupby('user_id').last()[['course_week']]
+        last_active_week.columns = ['user_last_active_week']
+        last_active_week = last_active_week.reset_index()
+        data = pd.merge(data, last_active_week, how='left', on='user_id')
+
+        data['num_problems_attempted'] = data['num_problems_incorrect'] + data['num_problems_correct']
+        data = data[[
+            'user_id',
+            'course_week',
+            'num_video_plays',
+            'num_problems_attempted',
+            'num_problems_correct',
+            'num_subsections_viewed',
+            'num_forum_posts',
+            'num_forum_votes',
+            'avg_forum_sentiment',
+            'user_started_week',
+            'user_last_active_week',
+            'user_completed_week'
+        ]]
+
+        # LOG.info(data.columns)
 
         return data
 

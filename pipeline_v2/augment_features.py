@@ -3,8 +3,9 @@ import luigi
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
-from pipeline.util import course_week, save_df_to_file
+from pipeline_v2.util import course_week, get_course_dates
 from pipeline_v2.build_features import BuildFeatures
+from pipeline_v2.adl_luigi import ADLTarget
 
 
 class AddNegativeDataPoints(luigi.Task):
@@ -20,31 +21,18 @@ class AddNegativeDataPoints(luigi.Task):
 
     def output(self):
         course_dates = pd.read_csv(self.input().get('course_dates').path)
-        course_start_date, _ = self.get_course_dates(course_dates)
+        course_start_date, _ = get_course_dates(course_dates)
 
         current_course_week = course_week(datetime.utcnow(), course_start_date)
 
-        return luigi.LocalTarget('data/{}/week_{}/model_data.csv'.format(
+        return ADLTarget('data/{}/week_{}/model_data.csv'.format(
             self.course_id, current_course_week
-        ))
+        ), thread_count=1)
 
     def run(self):
-        self.add_neg_data_points(self.course_id, self.input().get('features').path)
-
-    def get_course_dates(self, course_dates_df):
-        """
-        Get the start and end dates for the course
-        """
-
-        def get_datetime_col(col_name):
-            """
-            Get column as a datetime object
-            """
-            return datetime.strptime(course_dates_df[col_name][0], '%Y-%m-%d')
-
-        course_start_date = get_datetime_col('CourseRunStartDate')
-        course_end_date = get_datetime_col('CourseRunEndDate')
-        return (course_start_date, course_end_date)
+        data = self.add_neg_data_points(self.course_id, self.input().get('features').path)
+        with self.output().open('w') as output:
+            data.to_csv(output, index=False)
 
     def add_neg_data_points(self, course_id, features_path):
         """
@@ -90,11 +78,6 @@ class AddNegativeDataPoints(luigi.Task):
         # LOG.info('Done')
         # LOG.info('Calculating user dropped out next week.')
         data = self.calculate_drop_out_next_week(data)
-        # LOG.info('Done')
-
-        # LOG.info('Saving to csv...')
-        self.output().makedirs()
-        data.to_csv(self.output().path, index=False)
         # LOG.info('Done')
 
         return data

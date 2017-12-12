@@ -76,7 +76,7 @@ class ADLClient(luigi.target.FileSystem):
         :param path: path to file for luigi to check
         :return: boolean (file exists)
         """
-        return self.adl.exists(path)
+        return self.adl.exists(path, invalidate_cache=True)
 
     def listdir(self, path):
         """
@@ -86,16 +86,16 @@ class ADLClient(luigi.target.FileSystem):
         """
         return self.adl.ls(path, detail=True, invalidate_cache=True)
 
-    def open(self, path, mode='rb', blocksize=2**25, delimeter=None):
+    def open(self, path, mode='rb', blocksize=2**25, delimiter=None):
         """
         Open a file for reading or writing in bytes mode
         :param path:
         :param mode:
         :param blocksize:
-        :param delimeter:
+        :param delimiter:
         :return:
         """
-        return self.adl.open(path, mode=mode, blocksize=blocksize, delimeter=delimeter)
+        return self.adl.open(path, mode=mode, blocksize=blocksize, delimiter=delimiter)
 
     def put(self, source_path, destination_path, delimiter=None):
         """
@@ -147,6 +147,8 @@ class ADLClient(luigi.target.FileSystem):
                     progress_callback = _update_progress
         )
 
+    def remove(self, path, recursive=True, skip_trash=True):
+        return self.adl.rm(path, recursive=recursive)
 
     def _get_adl_config(self, key=None):
         defaults = dict(configuration.get_config().defaults())
@@ -207,4 +209,4 @@ class ADLTarget(luigi.target.FileSystemTarget):
 
             return self.fs.open(self.path)
         else:
-            return self.format.pipe_writer(AtomicADLFile(self.path, self.fs, **self.s3_options))
+            return self.format.pipe_writer(AtomicADLFile(self.path, self.fs, **self.adl_options))
