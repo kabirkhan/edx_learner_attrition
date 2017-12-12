@@ -10,13 +10,14 @@ from sklearn.preprocessing import MinMaxScaler
 from pipeline.util import *
 
 # Function to create model, required for KerasClassifier
-def create_model(optimizer='adam', num_hidden_layers=2, hidden_layers_dim=8):
+def create_model(optimizer='adam', hidden_layers_dim=8):
     # create model
     model = Sequential()
     model.add(Dense(hidden_layers_dim, input_dim=9, activation='relu'))
-    for i in range(num_hidden_layers):
-        model.add(Dense(hidden_layers_dim, activation='relu'))
-        model.add(Dropout(0.2))
+    model.add(Dense(hidden_layers_dim, activation='relu'))
+    model.add(Dropout(0.2))
+    model.add(Dense(hidden_layers_dim, activation='relu'))
+    model.add(Dropout(0.2))        
     model.add(Dense(2, activation='softmax'))
     # Compile model
     model.compile(loss='categorical_crossentropy', optimizer=optimizer, metrics=['accuracy'])

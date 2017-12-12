@@ -104,7 +104,8 @@ ENV/
 data/**/**
 
 # setup credentials
-setup.cfg
+config/**/luigi.cfg
+config/**/setup.cfg
 
 # vscode
 .vscode/**/*
