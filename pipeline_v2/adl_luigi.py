@@ -15,6 +15,9 @@ class FileNotFoundException(luigi.target.FileSystemException):
 
 
 class ADLClient(luigi.target.FileSystem):
+    """
+    Integration 
+    """
 
     _adl = None
 
@@ -106,7 +109,7 @@ class ADLClient(luigi.target.FileSystem):
         """
         self.adl.put(source_path, destination_path, delimiter=delimiter)
 
-    def put_multipart(self, source_path, destination_path, thread_count,
+    def put_multipart(self, source_path, destination_path, thread_count=1,
                       overwrite=False, chunksize=2**28, buffersize=2**22,
                       blocksize=2**22, show_progress_bar=False):
         """
@@ -210,3 +213,13 @@ class ADLTarget(luigi.target.FileSystemTarget):
             return self.fs.open(self.path)
         else:
             return self.format.pipe_writer(AtomicADLFile(self.path, self.fs, **self.adl_options))
+
+
+class ADLPathTask(luigi.ExternalTask):
+    """
+    An external task that requires existence of a path in Azure Data Lake store.
+    """
+    path = luigi.Parameter()
+
+    def output(self):
+        return ADLTarget(self.path)

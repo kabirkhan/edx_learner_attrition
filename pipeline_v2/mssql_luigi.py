@@ -1,19 +1,20 @@
 import logging
 import luigi
-
+import pandas as pd
 
 logger = logging.getLogger('luigi-interface')
 
+import pymssql
+
 try:
-    import _mssql
-except ImportError as e:
-    logger.warning("Loading MSSQL module without the python package pymssql. \
-        This will crash at runtime if SQL Server functionality is used.")
+    from ConfigParser import NoSectionError
+except ImportError:
+    from configparser import NoSectionError
 
 
-class MSSqlQueryTask(luigi.Task):
+class MSSqlConnection():
 
-    def __init__(self, host, database, user, password, query):
+    def __init__(self, host=None, database=None, user=None, password=None):
         """
         Initializes a MsSqlTarget instance.
         :param host: MsSql server address. Possibly a host:port string.
@@ -25,25 +26,41 @@ class MSSqlQueryTask(luigi.Task):
         :param password: password for specified user.
         :type password: str
         """
-        if ':' in host:
-            self.host, self.port = host.split(':')
-            self.port = int(self.port)
-        else:
-            self.host = host
-            self.port = 1433
-        self.database = database
-        self.user = user
-        self.password = password
-        self.query = query
+        config = self._get_mssql_config()
+        
+        if host:
+            config['host'] = host
+        if database:
+            config['database'] = database
+        if user:
+            config['user'] = user
+        if password:
+            config['password'] = password
+
+        self._config = config
 
     def connect(self):
         """
         Create a SQL Server connection and return a connection object
         """
-        connection = _mssql.connect(user=self.user,
-                                    password=self.password,
-                                    server=self.host,
-                                    port=self.port,
-                                    database=self.database)
+        connection = pymssql.connect(user=self._config.get('user'),
+                                    password=self._config.get('password'),
+                                    host=self._config.get('host'),
+                                    database=self._config.get('database'))
 
         return connection
+
+    def run_query(self, query):
+        """
+        Run a query on the MSSQL connection
+        """
+        return pd.read_sql(query, self.connect())
+
+    def _get_mssql_config(self):
+        """
+        Get mssql config
+        """        
+        try:
+            return dict(luigi.configuration.get_config().items('mssql'))
+        except NoSectionError:
+            return {}

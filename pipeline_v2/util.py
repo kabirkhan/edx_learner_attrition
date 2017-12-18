@@ -1,5 +1,6 @@
 import math
-from datetime import datetime
+from datetime import datetime, timedelta
+import pandas as pd
 
 def course_week(date_string, course_start_date):
     """
@@ -13,25 +14,17 @@ def course_week(date_string, course_start_date):
         else:
             date_string = date_string[0:8]
             date = datetime.strptime(date_string, "%Y%m%d")
-    elif isinstance(date_string, datetime):
+    else:
         date = date_string
+    
+    date = datetime.combine(date, datetime.min.time())
+    course_start_date = datetime.combine(course_start_date, datetime.min.time())
 
     course_week = math.ceil((date - course_start_date).days / 7)
     if course_week == 0:
         course_week = 1
     return course_week
 
-def get_course_dates(course_dates_df):
-    """
-    Get the start and end dates for the course
-    """
-
-    def get_datetime_col(col_name):
-        """
-        Get column as a datetime object
-        """
-        return datetime.strptime(course_dates_df[col_name][0], '%Y-%m-%d')
-
-    course_start_date = get_datetime_col('CourseRunStartDate')
-    course_end_date = get_datetime_col('CourseRunEndDate')
-    return (course_start_date, course_end_date)
+def two_weeks_ago():
+    recent = datetime.today() - timedelta(days=14)
+    return recent.strftime('%Y-%m-%d')

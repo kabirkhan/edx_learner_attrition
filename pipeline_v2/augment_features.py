@@ -1,13 +1,16 @@
 from datetime import datetime
 import luigi
+from luigi.util import requires
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
-from pipeline_v2.util import course_week, get_course_dates
+# from pipeline_v2 import Params
+from pipeline_v2.util import course_week
 from pipeline_v2.build_features import BuildFeatures
 from pipeline_v2.adl_luigi import ADLTarget
 
 
+@requires(BuildFeatures)
 class AddNegativeDataPoints(luigi.Task):
     """
     Task that adds negative data points to the features data frame
@@ -15,34 +18,26 @@ class AddNegativeDataPoints(luigi.Task):
     """
 
     course_id = luigi.Parameter()
-
-    def requires(self):
-        return BuildFeatures(self.course_id)
+    course_week = luigi.IntParameter()
+    course_start_date = luigi.DateParameter()
 
     def output(self):
-        course_dates = pd.read_csv(self.input().get('course_dates').path)
-        course_start_date, _ = get_course_dates(course_dates)
-
-        current_course_week = course_week(datetime.utcnow(), course_start_date)
-
         return ADLTarget('data/{}/week_{}/model_data.csv'.format(
-            self.course_id, current_course_week
-        ), thread_count=1)
+            self.course_id, self.course_week
+        ))
 
     def run(self):
-        data = self.add_neg_data_points(self.course_id, self.input().get('features').path)
+        with self.input()['features'].open() as features_file:
+            features = pd.read_csv(features_file)
+            data = self.add_neg_data_points(self.course_id, features)
         with self.output().open('w') as output:
             data.to_csv(output, index=False)
 
-    def add_neg_data_points(self, course_id, features_path):
+    def add_neg_data_points(self, course_id, features):
         """
         Add negative data points to a features dataframe
         """
-            # # LOG.info('Adding negative data points for course: {}'.format(course_id))
-
-        data = pd.read_csv(features_path)
-        data = data[data['course_week'] >= -1]
-
+        data = features.copy()
         user_ids = pd.unique(data['user_id'])
         course_weeks = set(pd.unique(data['course_week']))
 
@@ -92,8 +87,6 @@ class AddNegativeDataPoints(luigi.Task):
         )
         data_.loc[data_['user_completed_week'] > -1, 'user_dropped_out_next_week'] = 0
         return data_
-
-
 
 if __name__ == "__main__":
     luigi.run()

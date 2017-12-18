@@ -1,52 +1,48 @@
 from datetime import datetime, timedelta
 import luigi
+from luigi.util import requires
 import pandas as pd
-from pipeline_v2.query_data import RawUserActivity, CourseDatesTask
-from pipeline_v2.util import course_week, get_course_dates
+# from pipeline_v2 import Params
+from pipeline_v2.query_data import RawUserActivity, CourseDatesQueryTask
+from pipeline_v2.util import course_week
 from textblob import TextBlob
 from pipeline_v2.adl_luigi import ADLTarget
 
+@requires(RawUserActivity)
 class BuildFeatures(luigi.Task):
     """
     Converts raw sql data into initial features dataframe
     """
     course_id = luigi.Parameter()
-
-    def requires(self):
-        return RawUserActivity(self.course_id), CourseDatesTask(self.course_id)
+    course_week = luigi.IntParameter()
+    course_start_date = luigi.DateParameter()
 
     def output(self):
-        course_start_date, course_end_date = self._get_course_dates_from_input()
-        current_course_week = course_week(datetime.utcnow(), course_start_date)
-
         return {
-            'features': ADLTarget('data/{}/week_{}/features.csv'.format(self.course_id, current_course_week), thread_count=1),
-            'course_dates': self.input()[1]
+            'features': ADLTarget('data/{}/week_{}/features.csv'.format(self.course_id, self.course_week)),
         }
 
     def run(self):
         """
         Build features dataframe 
         """
-        input = self.input()[0]
-
-        events = pd.read_csv(input.get('events').path)
-        forums = pd.read_csv(input.get('forums').path)
-        course_starts = pd.read_csv(input.get('course_starts').path)
-        course_completions = pd.read_csv(input.get('course_completions').path)
+        input = self.input()
         
-        course_start_date, course_end_date = self._get_course_dates_from_input()
-
-        features = self.build_features(self.course_id, events, forums, course_starts, course_completions, course_start_date, course_end_date)
+        events = self.get_df_from_input('events')
+        print(events.head())
+        forums = self.get_df_from_input('forums')
+        course_starts = self.get_df_from_input('course_starts')
+        course_completions = self.get_df_from_input('course_completions')
+        
+        features = self.build_features(self.course_id, events, forums, course_starts, course_completions, self.course_start_date)
         features = features[features['course_week'] >= 1]
         features_target = self.output().get('features')
         with features_target.open(mode='w') as output:
             features.to_csv(output, index=False)
 
-    def _get_course_dates_from_input(self):
-        with self.input()[1].open() as course_dates_file:
-            course_dates = pd.read_csv(course_dates_file)
-            return get_course_dates(course_dates)
+    def get_df_from_input(self, key):
+        with self.input().get(key).open() as raw_input:
+            return pd.read_csv(raw_input)
 
     def build_features(self, 
                        course_id,
@@ -54,8 +50,7 @@ class BuildFeatures(luigi.Task):
                        forums,
                        course_starts,
                        course_completions,
-                       course_start_date,
-                       from_checkpoint=False):
+                       course_start_date):
         """
         Build a features dataframe by aggregating events for (user, course_week)
         """

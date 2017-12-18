@@ -9,6 +9,7 @@ from sklearn import metrics
 from sklearn.preprocessing import MinMaxScaler
 from pipeline.util import *
 
+
 # Function to create model, required for KerasClassifier
 def create_model(optimizer='adam', hidden_layers_dim=8):
     # create model

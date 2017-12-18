@@ -37,6 +37,7 @@ def query_data(course_id, from_checkpoint=False):
         DB_USER = os.environ['DB_USER']
         DB_PASS = os.environ['DB_PASSWORD']
         DB_SERVER = os.environ['DB_SERVER']
+        print(DB_SERVER, DB_USER, DB_PASS)
         CONN = pymssql.connect(DB_SERVER, DB_USER, DB_PASS)
         ROOT_PATH = os.path.dirname(os.path.realpath(sys.argv[0]))
 
