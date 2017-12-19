@@ -1,5 +1,6 @@
 from datetime import datetime
 import luigi
+from luigi.contrib.kubernetes import KubernetesJobTask
 import pandas as pd
 from common import MSSqlConnection, ADLTarget
 
@@ -18,7 +19,7 @@ class ConductorPipeline(luigi.Task):
         yield [SingleCourseKubernetesJobTask(course_id) for course_id in list(edx_course_ids)] 
 
 
-class SingleCourseKubernetesJobTask(luigi.contrib.kubernetes.KubernetesJobTask):
+class SingleCourseKubernetesJobTask(KubernetesJobTask):
     
     course_id = luigi.parameter()
 
@@ -60,3 +61,7 @@ class EdxCourseIdsTask(luigi.Task):
         
         with self.output().open('w') as output:
             edx_course_ids.to_csv(output, index=False)
+
+
+if __name__ == "__main__":
+    luigi.run()

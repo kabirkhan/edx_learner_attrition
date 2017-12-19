@@ -34,3 +34,7 @@ class Pipeline(luigi.Task):
             course_start_date = get_datetime_col('CourseRunStartDate')
             course_end_date = get_datetime_col('CourseRunEndDate')
             return (course_start_date, course_end_date)
+
+
+if __name__ == "__main__":
+    luigi.run()
