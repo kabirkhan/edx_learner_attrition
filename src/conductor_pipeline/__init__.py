@@ -21,7 +21,7 @@ class ConductorPipeline(luigi.Task):
 
 class SingleCourseKubernetesJobTask(KubernetesJobTask):
     
-    course_id = luigi.parameter()
+    course_id = luigi.Parameter()
 
     name = 'conductor'
     spec_schema = """{
