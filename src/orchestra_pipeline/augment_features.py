@@ -6,7 +6,7 @@ import numpy as np
 from tqdm import tqdm
 from orchestra_pipeline.util import course_week
 from orchestra_pipeline.build_features import BuildFeatures
-from common.adl_luigi import ADLTarget
+from common import ADLTarget
 
 
 @requires(BuildFeatures)

@@ -5,7 +5,7 @@ import pandas as pd
 from textblob import TextBlob
 from orchestra_pipeline.query_data import RawUserActivity, CourseDatesQueryTask
 from orchestra_pipeline.util import course_week
-from common.adl_luigi import ADLTarget
+from common import ADLTarget
 
 @requires(RawUserActivity)
 class BuildFeatures(luigi.Task):

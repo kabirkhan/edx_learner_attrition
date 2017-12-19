@@ -2,8 +2,7 @@
 import luigi
 from luigi.util import inherits
 # from pipeline_v2 import Params
-from common.adl_luigi import ADLTarget
-from common.mssql_luigi import MSSqlConnection
+from common import ADLTarget, MSSqlConnection
 from orchestra_pipeline import util
 
 
