@@ -7,8 +7,8 @@ RUN apt-get install -y python-pip
 
 COPY ./src /app
 RUN chmod +x /app/run_single_course.sh
-RUN chmod +x /app/orchestra_pipeline/install_prereqs.sh 
-RUN /app/orchestra_pipeline/install_prereqs.sh
+RUN pip install --upgrade pip
+RUN pip install -r /app/orchestra_pipeline/requirements.txt
 
 EXPOSE 8082
 
