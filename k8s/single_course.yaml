@@ -1,0 +1,22 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  labels:
+    app: tensorflow-trainer
+  name: tensorflow-trainer
+spec:
+  template:
+    metadata:
+      name: tensorflow-trainer
+    spec:
+      containers:
+      - args:
+        - --train
+        image: ritazh/tf-server
+        name: tensorflow-trainer
+        env:
+        - name: STORAGE_ACCOUNT_NAME
+          value: 
+        - name: STORAGE_ACCOUNT_KEY
+          value:
+      restartPolicy: Never

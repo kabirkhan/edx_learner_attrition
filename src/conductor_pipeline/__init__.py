@@ -10,13 +10,17 @@ class ConductorPipeline(luigi.Task):
     Main Pipeline class that conducts the kubernetes cluster to orchestrate 
     pipeline jobs for each course.
     """
-    def requires(self):
-        return EdxCourseIdsTask()
+    # def requires(self):
+    #     return EdxCourseIdsTask()
+
+    def complete(self):
+        return False
 
     def run(self):
-        with self.input().open() as course_ids_file:
-            edx_course_ids = pd.read_csv(course_ids_file)
-        yield [SingleCourseKubernetesJobTask(course_id) for course_id in list(edx_course_ids)] 
+        # with self.input().open() as course_ids_file:
+        #     edx_course_ids = pd.read_csv(course_ids_file)
+        yield SingleCourseKubernetesJobTask('Microsoft+DAT222x+4T2017')
+        # yield [SingleCourseKubernetesJobTask(course_id) for course_id in list(edx_course_ids)] 
 
 
 class SingleCourseKubernetesJobTask(KubernetesJobTask):
@@ -24,17 +28,25 @@ class SingleCourseKubernetesJobTask(KubernetesJobTask):
     course_id = luigi.Parameter()
 
     name = 'conductor'
-    spec_schema = """{
+    spec_schema = {
         "containers": [{
             "name": "single_course",
-            "image": "kabirkhan14:learner-attrition-single-course"
-            "args": "{course_id}"
+            "image": "learnerattrition.azurecr.io/learner-attrition"
         }],
-        "restartPolicy": "Never"
-    }"""
+        "imagePullSecrets": [{
+            "name": "registrykey"
+        }]
+    }
 
     def run(self):
-        self.spec_schema = self.spec_schema.format(course_id=self.course_id)
+        print('COURSE ID: ', self.course_id)
+        self.spec_schema["containers"][0]["args"] = [self.course_id]
+
+        print('=====================================================')
+        print('=====================================================')
+        print(self.spec_schema)
+        print('=====================================================')
+        print('=====================================================')
         super().run()
     
 
