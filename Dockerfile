@@ -9,6 +9,7 @@ RUN pip3 install --upgrade pip
 COPY ./src /app
 RUN chmod +x /app/run_single_course.sh
 RUN pip3 install -r /app/orchestra_pipeline/requirements.txt
+RUN luigid --background
 
 EXPOSE 8082
 

@@ -10,8 +10,8 @@ class ConductorPipeline(luigi.Task):
     Main Pipeline class that conducts the kubernetes cluster to orchestrate 
     pipeline jobs for each course.
     """
-    # def requires(self):
-    #     return EdxCourseIdsTask()
+    def requires(self):
+        return EdxCourseIdsTask()
 
     def complete(self):
         return False
@@ -30,8 +30,8 @@ class SingleCourseKubernetesJobTask(KubernetesJobTask):
     name = 'conductor'
     spec_schema = {
         "containers": [{
-            "name": "single_course",
-            "image": "learnerattrition.azurecr.io/learner-attrition"
+            "name": "single-course",
+            "image": "learnerattrition.azurecr.io/learner-attrition-pipeline"
         }],
         "imagePullSecrets": [{
             "name": "registrykey"
@@ -57,12 +57,19 @@ class EdxCourseIdsTask(luigi.Task):
     _query = """
         SELECT DISTINCT CourseRunId
         FROM [EdxDW].[edx].[DimCourse] C
-        WHERE [CourseRunStartDate] < {current_date}
-        AND [CourseRunEndDate] > {current_date}
+        WHERE [CourseRunStartDate] < '{current_date}'
+        AND [CourseRunEndDate] > '{current_date}'
     """
 
     def output(self):
         return ADLTarget('data/edx_course_ids.csv')
+
+    def complete(self):
+        """
+        This is a pretty short task, and we should always refresh our course list
+        before running the full pipeline.
+        """
+        return False
 
     def run(self):
         current_date_string = datetime.strftime(datetime.today(), '%Y-%m-%d')
