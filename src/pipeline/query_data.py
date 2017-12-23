@@ -3,10 +3,10 @@ import luigi
 from luigi.util import inherits
 # from pipeline_v2 import Params
 from common import ADLTarget, MSSqlConnection
-from orchestra_pipeline import util
+from pipeline import util
 
 
-class RawUserActivity(luigi.Task):
+class RawUserActivity(luigi.WrapperTask):
     """
     Tasks that implement this mixin must return data in a specific format
     for events, course_starts, course_completions, forum posts and course start/end dates
@@ -24,9 +24,6 @@ class RawUserActivity(luigi.Task):
                 'course_starts': CourseStartsQueryTask(course_id=self.course_id, course_week=self.course_week),
                 'course_completions': CourseCompletionsQueryTask(course_id=self.course_id, course_week=self.course_week)
             }
-
-    def run(self):
-        pass
     
     def output(self):
         return self.input()
@@ -215,6 +212,7 @@ class CourseDatesQueryTask(luigi.Task):
         res = conn.run_query(self._query.format(self.course_id))
         with self.output().open('w') as output:
             res.to_csv(output, index=False)
+
 
 if __name__ == "__main__":
     luigi.run()

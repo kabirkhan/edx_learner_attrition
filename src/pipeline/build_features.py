@@ -3,8 +3,8 @@ import luigi
 from luigi.util import requires
 import pandas as pd
 from textblob import TextBlob
-from orchestra_pipeline.query_data import RawUserActivity, CourseDatesQueryTask
-from orchestra_pipeline.util import course_week
+from pipeline.query_data import RawUserActivity, CourseDatesQueryTask
+from pipeline.util import course_week
 from common import ADLTarget
 
 @requires(RawUserActivity)

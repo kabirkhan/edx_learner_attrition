@@ -4,8 +4,8 @@ from luigi.util import requires
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
-from orchestra_pipeline.util import course_week
-from orchestra_pipeline.build_features import BuildFeatures
+from pipeline.util import course_week
+from pipeline.build_features import BuildFeatures
 from common import ADLTarget
 
 

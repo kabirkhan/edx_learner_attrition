@@ -197,6 +197,8 @@ class ADLTarget(luigi.target.FileSystemTarget):
         if format is None:
             format = luigi.format.get_default_format()
 
+        print('PATH IN ADLTarget CLASS: ', path)
+
         self.path = path
         self.format = format
         self.fs = client or ADLClient()
@@ -215,6 +217,43 @@ class ADLTarget(luigi.target.FileSystemTarget):
             return self.format.pipe_writer(AtomicADLFile(self.path, self.fs, **self.adl_options))
 
 
+class ADLFlagTarget(ADLTarget):
+    """
+    Defines a target directory with a flag-file (defaults to `_SUCCESS`) used
+    to signify job success.
+    This checks for two things:
+    * the path exists (just like the ADLTarget)
+    * the _SUCCESS file exists within the directory.
+    """
+
+    fs = None
+
+    def __init__(self, path, format=None, client=None, flag='_SUCCESS'):
+        """
+        Initializes a ADLFlagTarget.
+        :param path: the directory where the files are stored.
+        :type path: str
+        :param format: see the luigi.format module for options
+        :type format: luigi.format.[Text|UTF8|Nop]
+        :param client:
+        :type client:
+        :param flag:
+        :type flag: str
+        """
+        if format is None:
+            format = luigi.format.get_default_format()
+
+        if path[-1] != "/":
+            raise ValueError("ADLFlagTarget requires the path to be to a "
+                             "directory.  It must end with a slash ( / ).")
+        super(ADLFlagTarget, self).__init__(path + flag, format, client)
+        self.flag = flag
+
+    def exists(self):
+        hadoopSemaphore = self.path + self.flag
+        return self.fs.exists(hadoopSemaphore)
+
+
 class ADLPathTask(luigi.ExternalTask):
     """
     An external task that requires existence of a path in Azure Data Lake store.
@@ -223,3 +262,15 @@ class ADLPathTask(luigi.ExternalTask):
 
     def output(self):
         return ADLTarget(self.path)
+
+
+class ADLFlagTask(luigi.ExternalTask):
+    """
+    An external task that requires the existence of 'Hadoop' like output
+    _SUCCESS flag file in the directory specified by path
+    """
+    path = luigi.Parameter()
+    flag = luigi.Parameter(default='_SUCCESS')
+
+    def output(self):
+        return ADLFlagTarget(self.path, flag=self.flag)

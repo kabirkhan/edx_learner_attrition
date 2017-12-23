@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: luigid
+  name: luigid
+spec:
+  ports:
+  - port: 8082
+    targetPort: 8082
+  selector:
+    app: luigid
+  type: LoadBalancer
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: luigid
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: luigid
+    spec:
+      containers:
+      - name: luigid
+        image: pysysops/luigid
+        ports:
+        - containerPort: 8082
+        resources:
+          limits:
+            cpu: 2
