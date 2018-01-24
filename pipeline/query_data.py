@@ -37,7 +37,6 @@ def query_data(course_id, from_checkpoint=False):
         DB_USER = os.environ['DB_USER']
         DB_PASS = os.environ['DB_PASSWORD']
         DB_SERVER = os.environ['DB_SERVER']
-        print(DB_SERVER, DB_USER, DB_PASS)
         CONN = pymssql.connect(DB_SERVER, DB_USER, DB_PASS)
         ROOT_PATH = os.path.dirname(os.path.realpath(sys.argv[0]))
 
@@ -105,9 +104,11 @@ def query_data(course_id, from_checkpoint=False):
         WHERE C.[CourseRunId] = '{}'
         """.format(course_id)
 
+        print('COURSE ID: ', course_id)
+
         LOG.info('Querying clickstream event data...')
         events = pd.read_sql(EVENTS_QUERY, CONN)
-        LOG.info('Done')
+        LOG.info('Done', events.head())
 
         LOG.info('Querying forum data...')
         forums = pd.read_sql(FORUMS_QUERY, CONN)
@@ -175,6 +176,8 @@ def get_course_dates(course_dates_df):
         """
         Get column as a datetime object
         """
+        print(course_dates_df[col_name])
+        print(col_name)
         return datetime.strptime(course_dates_df[col_name][0], '%Y-%m-%d')
     course_start_date = get_datetime_col('CourseRunStartDate')
     course_end_date = get_datetime_col('CourseRunEndDate')

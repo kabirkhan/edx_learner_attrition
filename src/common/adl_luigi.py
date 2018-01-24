@@ -197,7 +197,7 @@ class ADLTarget(luigi.target.FileSystemTarget):
         if format is None:
             format = luigi.format.get_default_format()
 
-        print('PATH IN ADLTarget CLASS: ', path)
+        # print('PATH IN ADLTarget CLASS: ', path)
 
         self.path = path
         self.format = format
@@ -264,7 +264,7 @@ class ADLPathTask(luigi.ExternalTask):
         return ADLTarget(self.path)
 
 
-class ADLFlagTask(luigi.ExternalTask):
+class ADLFlagTask(luigi.Task):
     """
     An external task that requires the existence of 'Hadoop' like output
     _SUCCESS flag file in the directory specified by path

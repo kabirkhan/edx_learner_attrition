@@ -16,7 +16,7 @@ class Pipeline(ADLFlagTask):
     """
     course_id = luigi.Parameter()
     course_start_date = luigi.DateParameter()
-    current_course_week = luigi.DateParameter()
+    current_course_week = luigi.IntParameter()
     
     def requires(self):
         return AddNegativeDataPoints(course_id=self.course_id, 

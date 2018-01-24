@@ -35,6 +35,17 @@ class EventsQueryTask(luigi.Task):
     course_week = luigi.IntParameter()
     course_start_date = luigi.DateParameter()
 
+    # _query = """
+    #     SELECT
+    #         UserId, EventType, EventSource, CourseId,
+    #         EventGrade, EventAttempts, EventMaxGrade, 
+    #         EventSub_Correct, EventTime
+    #     FROM [EdxStaging].[edx].[Edx_DailyEvents]
+    #     WHERE (Host = 'courses.edx.org' and CourseId = '{}')
+    #     AND UserId IS NOT NULL
+    #     AND EventTime > '{}'        
+    # """
+
     _query = """
         SELECT
             UserId, EventType, EventSource, CourseId,
@@ -42,7 +53,6 @@ class EventsQueryTask(luigi.Task):
             EventSub_Correct, EventTime
         FROM [EdxStaging].[edx].[Edx_DailyEvents]
         WHERE (Host = 'courses.edx.org' and CourseId = '{}')
-        AND EventTime > '{}'
         AND UserId IS NOT NULL
     """
 
@@ -51,7 +61,8 @@ class EventsQueryTask(luigi.Task):
 
     def run(self):
         conn = MSSqlConnection()
-        events = conn.run_query(self._query.format(self.course_id, util.two_weeks_ago()))
+        # events = conn.run_query(self._query.format(self.course_id, util.two_weeks_ago()))
+        events = conn.run_query(self._query.format(self.course_id))
         with self.output().open('w') as output:
             events.columns = [
                 'user_id', 'event_type', 'event_source', 'course_id',
@@ -205,9 +216,11 @@ class CourseDatesQueryTask(luigi.Task):
     """
 
     def output(self):
+        # print('OUTPUT METHOD COURSE DATES QUERY: ', self.course_id)
         return ADLTarget('data/{}/course_dates.csv'.format(self.course_id))
 
     def run(self):
+        # print('RUNNING COURSE DATES QUERY: ', self.course_id)
         conn = MSSqlConnection()
         res = conn.run_query(self._query.format(self.course_id))
         with self.output().open('w') as output:

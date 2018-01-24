@@ -5,18 +5,24 @@ import click
 import pipeline
 
 # parameter handling
-@click.command()
-@click.option(
-    '--course-id',
-    help='ID for an edX Course Run. (e.g. Microsoft+DAT206x+3T2017)'
-)
-@click.option(
-    '--from-checkpoint',
-    help='If True, pull data from csv files in the /data folder. False by default',
-    is_flag=True,
-    default=False
-)
-def run(course_id, from_checkpoint):
+# @click.command()
+# @click.option(
+#     '--course-id',
+#     help='ID for an edX Course Run. (e.g. Microsoft+DAT206x+3T2017)'
+# )
+# @click.option(
+#     '--from-checkpoint',
+#     help='If True, pull data from csv files in the /data folder. False by default',
+#     is_flag=True,
+#     default=False
+# )
+# @click.option(
+#     '--train',
+#     help='If True, retrain the model. False by default',
+#     is_flag=True,
+#     default=False
+# )
+def run(course_id, from_checkpoint, run_model, train):
 
     """
     Send notification message to an existing service bus queue
@@ -31,16 +37,61 @@ def run(course_id, from_checkpoint):
 
     start = datetime.now()
 
-    data = pipeline.query_data(course_id, from_checkpoint=from_checkpoint)
-    # features = pipeline.build_features(course_id, *data, from_checkpoint=from_checkpoint)
-    # model_data = pipeline.add_neg_data_points(course_id, features, from_checkpoint=from_checkpoint)
+    data = pipeline.query_data(course_id, from_checkpoint)
+    features = pipeline.build_features(course_id, *data, from_checkpoint)
+    del data
+    if from_checkpoint and not run_model:
+        pipeline.add_neg_data_points(course_id, features, False)
+    del features
     # data = pipeline.query_data(course_id, from_checkpoint=True)
     # features = pipeline.build_features(course_id, *data, from_checkpoint=True)
-    # model_data = pipeline.add_neg_data_points(course_id, features, from_checkpoint=True)
-    # preds, accuracy, confusion_matrix = pipeline.fit_score_predict(course_id, from_checkpoint=from_checkpoint)
+    
+    if run_model:
+        preds, accuracy, confusion_matrix = pipeline.fit_score_predict(course_id, train)
+        print('FINAL PREDS FOR COURSE: {}: '.format(course_id))
+        print(preds, accuracy, confusion_matrix)
     delta = datetime.now() - start
     end = round(delta.seconds / 60)
     print('Finished Pipeline for Course: {}. Run finished in {} minutes'.format(course_id, end))
 
 if __name__ == "__main__":
-    run() # pylint: disable=no-value-for-parameter
+    # run()
+
+    # PREPROCESS
+    all_start = datetime.now()
+    
+    print('STARTING FOR TOP 30 COURSES...')
+    with open('{}/top_course_ids.txt'.format(pipeline.util.get_data_path())) as top_course_ids:
+        for top_course_id in top_course_ids:
+            print('Running for course: ', top_course_id)
+            try:
+                run(top_course_id.strip(), from_checkpoint=True, run_model=False, train=False) # pylint: disable=no-value-for-parameter
+            except Exception:
+                pass
+    all_delta = datetime.now() - all_start
+    all_end = round(all_delta.seconds / 60)
+    print('Finished Pipeline for TOP 30 COURSES. Run finished in {} minutes'.format(all_end))
+
+    # TRAIN
+    all_start = datetime.now()
+    print('STARTING FOR TOP 30 COURSES...')
+    run('Microsoft+DAT206x+4T2017', True, True, True)
+    all_delta = datetime.now() - all_start
+    all_end = round(all_delta.seconds / 60)
+    print('Finished Pipeline for TOP 30 COURSES. Run finished in {} minutes'.format(all_end))
+
+    # PREDICT
+    all_start = datetime.now()
+    
+    print('STARTING FOR TOP 30 COURSES...')
+    with open('{}/top_course_ids.txt'.format(pipeline.util.get_data_path())) as top_course_ids:
+        for top_course_id in top_course_ids:
+            if '4T2017' in top_course_id:
+                print('Running for course: ', top_course_id)
+                try:
+                    run(top_course_id.strip(), from_checkpoint=True, run_model=True, train=False) # pylint: disable=no-value-for-parameter
+                except Exception:
+                    pass
+    all_delta = datetime.now() - all_start
+    all_end = round(all_delta.seconds / 60)
+    print('Finished Pipeline for TOP 30 COURSES. Run finished in {} minutes'.format(all_end))

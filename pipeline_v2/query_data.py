@@ -45,7 +45,6 @@ class EventsQueryTask(luigi.Task):
             EventSub_Correct, EventTime
         FROM [EdxStaging].[edx].[Edx_DailyEvents]
         WHERE (Host = 'courses.edx.org' and CourseId = '{}')
-        AND EventTime > '{}'
         AND UserId IS NOT NULL
     """
 
@@ -54,7 +53,7 @@ class EventsQueryTask(luigi.Task):
 
     def run(self):
         conn = MSSqlConnection()
-        events = conn.run_query(self._query.format(self.course_id, util.two_weeks_ago()))
+        events = conn.run_query(self._query.format(self.course_id))
         with self.output().open('w') as output:
             events.columns = [
                 'user_id', 'event_type', 'event_source', 'course_id',
