@@ -8,10 +8,11 @@ from cntk.device import try_set_default_device, gpu
 try_set_default_device(gpu(0))
 
 import keras
-from keras.models import Sequential, load_model
-from keras.layers import Activation, Dense, Dropout
+from keras.callbacks import ModelCheckpoint, EarlyStopping
+from keras.models import Sequential, load_model, Model
+from keras.layers import Activation, Dense, Dropout, Input, Average
 from keras.layers.normalization import BatchNormalization
-from keras.optimizers import Adam
+from keras import optimizers
 from keras.utils import plot_model
 from sklearn import metrics
 from sklearn.model_selection import StratifiedKFold
@@ -173,11 +174,11 @@ def run_model(course_id, train, num_epochs, batch_size, class_weight, learning_r
         current_date_string = datetime.strftime(datetime.today(), '%Y-%m-%d')
         model = load_model('model-{}.h5'.format('2018-01-23'))
     else:
-        adam = optimizers.Adam(lr=0.01)
+        adam = optimizers.Adam(lr=learning_rate)
 
-        with open(layers_config_filename) as f:
+        with open(layers_config_filename, 'r') as f:
             import json
-            layers_conf = json.loads(f)["layers"]
+            layers_conf = json.loads(f.read())["layers"]
 
         print('Fitting model')
         
@@ -189,7 +190,7 @@ def run_model(course_id, train, num_epochs, batch_size, class_weight, learning_r
                                  hidden_layers_conf=layers_conf, 
                                  name='kfold-{}'.format(i))
     
-            model.compile(loss='binary_crossentropy', optimizer=Adam(learning_rate), metrics=['acc'])             
+            model.compile(loss='binary_crossentropy', optimizer=adam, metrics=['acc'])             
             
             history = model.fit(x=X_train,
                                 y=y_train, 
