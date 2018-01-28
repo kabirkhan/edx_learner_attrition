@@ -1,0 +1,20 @@
+{
+    "subscription_id": "fd74930d-c060-4ff4-a7f1-9470f7ad7f8f",
+    "aad_client_id": "40dc312f-5ab4-4a91-b35b-b3089c113b4f",
+    "aad_secret": "9c1e4357-cdad-4c4f-b2b5-e8100f56a2bd",
+    "aad_tenant": "72f988bf-86f1-41af-91ab-2d7cd011db47",
+    "location": "eastus",
+    "base_url": "",
+    "resource_group": "learner-attrition-supp",
+    "storage_account" : {
+        "name": "learnerattrition",
+        "key": "qrcsnT4k6tPuUJ089F6gdG6ZYCbQ0mBHVwUrB9p8B6D+qJOhXDJ/wP3ZVXs9JjtDSHPVbas61hnFC9Dq1BqK1g=="
+    },
+    "admin_user" : {
+        "name": "kabirkhan",
+        "password": "Password!"
+    },
+    "datalake": {
+        "store_name": "edxlearnerattritiontest"
+    }
+}

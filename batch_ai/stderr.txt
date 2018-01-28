@@ -1,0 +1,20 @@
+bash: /mnt/batch/tasks/workitems/la_01_27_2018_020417_5390c5e1-7ad7-4f37-b2dc-205f8f964c9a/job-1/la_01_27_2018_020417_5390c5e1-7ad7-4f37-b2dc-205f8f964c9a/wd/.bashrc: No such file or directory
+Selected GPU[0] Tesla K80 as the process wide default device.
+Using CNTK backend
+Traceback (most recent call last):
+  File "/mnt/batch/tasks/shared/LS_root/mounts/external/learner-attrition/model.py", line 277, in <module>
+    run_model()
+  File "/anaconda/envs/py35/lib/python3.5/site-packages/click/core.py", line 722, in __call__
+    return self.main(*args, **kwargs)
+  File "/anaconda/envs/py35/lib/python3.5/site-packages/click/core.py", line 676, in main
+    _verify_python3_env()
+  File "/anaconda/envs/py35/lib/python3.5/site-packages/click/_unicodefun.py", line 118, in _verify_python3_env
+    'for mitigation steps.' + extra)
+RuntimeError: Click will abort further execution because Python 3 was configured to use ASCII as encoding for the environment.  Consult http://click.pocoo.org/python3/for mitigation steps.
+
+This system supports the C.UTF-8 locale which is recommended.
+You might be able to resolve your issue by exporting the
+following environment variables:
+
+    export LC_ALL=C.UTF-8
+    export LANG=C.UTF-8

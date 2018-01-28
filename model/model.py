@@ -11,6 +11,7 @@ from keras.layers import Activation, Dense, Dropout
 from keras.layers.normalization import BatchNormalization
 from keras.utils import plot_model
 from sklearn import metrics
+from sklearn.model_selection import StratifiedKFold
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 # from sklearn.cross_validation import train_test_split
 from pipeline.util import *
@@ -112,13 +113,17 @@ def fit_score_predict(course_id, train=False):
         print('Fitting model')
         y_counts = Counter(y_train)
         positive_upweight = (y_counts[0] / y_counts[1])
-        model.fit(X_train, 
-                  y_train, 
-                  epochs=10, 
-                  batch_size=batch_size, 
-                  class_weight={ 0: 1., 1: 2 }, 
-                  validation_split=0.1,
-                  verbose=2)
+
+        kfold = StratifiedKFold(n_splits=10, shuffle=True)
+        cv_scores = []
+        for train, val in kfold.split(X_train, y_train):
+            model.fit(X_train,
+                    y_train, 
+                    epochs=10, 
+                    batch_size=batch_size, 
+                    class_weight={ 0: 1., 1: 2 }, 
+                    validation_split=0.1,
+                    verbose=2)
         print('Done')
         try:
             model.save('model.h5')
