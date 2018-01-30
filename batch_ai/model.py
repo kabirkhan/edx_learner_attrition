@@ -218,7 +218,7 @@ def run_model(course_id, train, num_epochs, batch_size, positive_upweight, learn
                                 class_weight={ 0: 1., 1: positive_upweight },
                                 validation_data=(X_train[val_ind], y_train[val_ind]))
 
-            y_val_pred = model.predict(X_train[val_ind])
+            y_val_pred = np.round(model.predict(X_train[val_ind], batch_size=batch_size))
             y_val_true = y_train[val_ind]
 
             final_recall = metrics.recall_score(y_val_true, y_val_pred)
