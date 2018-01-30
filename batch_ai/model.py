@@ -155,9 +155,25 @@ def _cell_colors(s):
     return ret
 
 
-def run_model(course_id, train, num_epochs, batch_size, class_weight, learning_rate, layers_config_filename):
+def false_neg_metric(y_true, y_pred):
     """
-    
+    Calculate ratio of false negatives in predictions with sklearn conf_matrix metric
+    """
+    conf_matrix = metrics.confusion_matrix(y_true, y_pred)
+    false_neg_ratio = conf_matrix[1][0]
+    return false_neg_ratio / 100
+
+
+def cohens_kappa_metric(y_true, y_pred):
+    """
+    Calculate Cohens Kappa with sklearn metric
+    """
+    return metrics.cohen_kappa_score(y_true, y_pred)
+
+
+def run_model(course_id, train, num_epochs, batch_size, positive_upweight, learning_rate, layers_config_filename, outputdir):
+    """
+    Run model with parsed configuration
     """
 
     print('GETTING DATA: ')
@@ -168,6 +184,8 @@ def run_model(course_id, train, num_epochs, batch_size, class_weight, learning_r
     model_input = Input(shape=input_shape)
     
     models = []
+    best_model = None
+    best_model_score = -np.inf
     batch_size = 256
     
     if not train:
@@ -189,54 +207,34 @@ def run_model(course_id, train, num_epochs, batch_size, class_weight, learning_r
             model = create_model(model_input, 
                                  hidden_layers_conf=layers_conf, 
                                  name='kfold-{}'.format(i))
-    
-            model.compile(loss='binary_crossentropy', optimizer=adam, metrics=['acc'])             
+
+            model.compile(loss='binary_crossentropy', optimizer=adam, metrics=['acc'])         
             
             history = model.fit(x=X_train,
                                 y=y_train, 
                                 batch_size=batch_size, 
                                 epochs=num_epochs, 
-                                verbose=1,
+                                verbose=2,
                                 class_weight={ 0: 1., 1: positive_upweight },
                                 validation_data=(X_train[val_ind], y_train[val_ind]))
 
+            y_val_pred = model.predict(X_train[val_ind])
+            y_val_true = y_train[val_ind]
+
+            final_recall = metrics.recall_score(y_val_true, y_val_pred)
+            final_acc = metrics.recall_score(y_val_true, y_val_pred)
+            final_score = final_recall - final_acc
+
+            if final_score > best_model_score:
+                best_model_score = final_score
+                best_model = model
+
             models.append(model)
-        
-    print('Evaluating model on data for course: {}'.format(course_id))
-    
-    ensemble = ensemble_models(models, model_input)
 
-    print('Done')
-
-    try:
-        current_date_string = datetime.strftime(datetime.today(), '%Y-%m-%d')
-        ensemble.save('model-ensemble-{}.h5'.format(current_date_string))
+    try:        
+        best_model.save(os.path.join(outputdir, 'model.h5'))
     except:
         print('FAILED TO SAVE MODEL')
-
-    preds = ensemble.predict(X_test, batch_size)
-    final_preds = np.round(preds)
-
-    print('PREDS: ', final_preds)
-    print('Y_TEST: ', y_test)
-
-    conf_matrix = metrics.confusion_matrix(y_test, final_preds)
-
-    tn, fp, fn, tp = conf_matrix.ravel()
-    total = len(y_test)
-    final_acc = (tn + tp) / total
-
-    test_data_orig = pd.read_csv('{}/{}/model_data.csv'.format(get_data_path(), course_id))
-    test_data_orig['predicted_user_dropped_out_next_week'] = final_preds
-    
-    # save_df_to_file(test_data_orig, 'model_data_with_preds', course_id)
-
-    print('ACCURACY: ', final_acc)
-    print('CONFUSION MATRIX: ')
-    print(conf_matrix)
-    print(conf_matrix / len(y_test))
-
-    return (final_preds, final_acc, conf_matrix)
 
 
 if __name__ == '__main__':
@@ -246,15 +244,22 @@ if __name__ == '__main__':
     print('STARTING')
 
     parser.add_argument('--course-id', help='Course Id to run on', required=True, default=None)
-    parser.add_argument('--train', help='Train model or not', required=False, type=bool, default=True)
-    parser.add_argument('--num-epochs', help='Number of epochs to run for', required=False, default=10)
-    parser.add_argument('--batch-size', help='Batch Size for train/test', required=False, default=256)
-    parser.add_argument('--positive-upweight', help='How much to upweight positive preds during optimization', required=False, default=2)
-    parser.add_argument('--lr', help='Learning rate for Adam Optimizer', required=False, default=0.01)
+    parser.add_argument('--train', help='Train model or not', action='store_true', required=False, default=True)
+    parser.add_argument('--num-epochs', help='Number of epochs to run for', required=False, type=int, default=10)
+    parser.add_argument('--batch-size', help='Batch Size for train/test', required=False, type=int, default=256)
+    parser.add_argument('--positive-upweight', help='How much to upweight positive preds during optimization', type=float, required=False, default=2)
+    parser.add_argument('--lr', help='Learning rate for Adam Optimizer', required=False, type=float, default=0.01)
     parser.add_argument('--layers-config-file', help='JSON config file for layers', required=True, default=None)
+    parser.add_argument('--outputdir', help='Directory to save best models to', required=True, default=None)
 
     args = vars(parser.parse_args())
-    print('ARGS ALL GOOD')
+    print('ARGS ALL GOOD', args)
     
-
-    run_model(args['course_id'], args['train'], args['num_epochs'], args['batch_size'], args['positive_upweight'], args['lr'], args['layers_config_file'])
+    run_model(args['course_id'], 
+             args['train'], 
+             args['num_epochs'], 
+             args['batch_size'], 
+             args['positive_upweight'], 
+             args['lr'], 
+             args['layers_config_file'],
+             args['outputdir'])
