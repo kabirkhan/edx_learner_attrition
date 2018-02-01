@@ -1,0 +1,3 @@
+﻿<?xml version="1.0" encoding="utf-8"?><Error><Code>InvalidHeaderValue</Code><Message>The value for one of the HTTP headers is not in the correct format.
+RequestId:0497aba0-001a-007a-3e94-994794000000
+Time:2018-01-30T06:32:03.9660054Z</Message><HeaderName>x-ms-version</HeaderName><HeaderValue /></Error>

@@ -2,7 +2,7 @@
     "layers": [
         {
             "n_units": 8,
-            "dropout": 0.2,
+            "dropout": 0.5,
             "input_dim": 10
         },
         {

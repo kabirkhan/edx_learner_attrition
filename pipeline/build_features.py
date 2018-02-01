@@ -40,8 +40,6 @@ def build_features(course_id,
         LOG.info('Merging events features and forum features')
         features = pd.merge(event_features, forum_features, how='left', on=['user_id', 'course_week'])
         LOG.info('Done')
-        print(features.columns)
-        print(features.head())
 
         features.columns = [
             'course_week',
@@ -118,14 +116,10 @@ def _build_events_features(events_df):
     features = pd.DataFrame(
         events_df.groupby(['course_week', 'user_id'])['event_type'].value_counts()
     )
-    print('BUILD FEATURES: ', features.columns)
-    print(features.head())
     features.columns = ['event_counts']
     features = features.unstack()
     features = features.fillna(0.0)
     features = features.reset_index()
-    print('BUILD FEATURES: ', features.columns)
-    print(features.head())
     return features
 
 

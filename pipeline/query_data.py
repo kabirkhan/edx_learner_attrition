@@ -108,7 +108,7 @@ def query_data(course_id, from_checkpoint=False):
 
         LOG.info('Querying clickstream event data...')
         events = pd.read_sql(EVENTS_QUERY, CONN)
-        LOG.info('Done', events.head())
+        LOG.info('Done')
 
         LOG.info('Querying forum data...')
         forums = pd.read_sql(FORUMS_QUERY, CONN)

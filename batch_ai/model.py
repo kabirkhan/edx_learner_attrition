@@ -23,6 +23,19 @@ def get_data_path():
     return './data'
 
 
+def remove_outliers(data, std_threshold=5):
+    """
+    Remove outliers from train/test df
+    """
+    data_ = data.iloc[data.loc[data.apply(lambda x: np.abs(x - x.mean()) / x.std() < std_threshold).all(axis=1), [
+        'num_video_plays', 'num_problems_attempted',
+        'num_problems_correct', 'num_subsections_viewed', 'num_forum_posts',
+        'num_forum_votes', 'avg_forum_sentiment'
+    ]].index]
+
+    return data_
+
+
 def get_data(current_course_id):
     """
     Fetch data as train/test split and normalize
@@ -37,23 +50,24 @@ def get_data(current_course_id):
         print('Not in list')
 
     for course_id in past_course_ids:
-        if '4T2017' not in course_id:
-            try:
-                # course_run_data = pd.read_csv('{}/{}/model_data.csv'.format(get_data_path(), course_id))
-                path = '{}/{}/model_data_l.csv'.format(get_data_path(), course_id)
-                course_run_data = pd.read_csv(path)
-            except Exception:
-                print('model_data.csv does not exist for course: ', course_id)
-                continue
-                # pass                
-            if train is None:
-                train = course_run_data
-            else:
-                train = train.append(course_run_data)
+        # if '4T2017' not in course_id:
+        try:
+            # course_run_data = pd.read_csv('{}/{}/model_data.csv'.format(get_data_path(), course_id))
+            path = '{}/{}/model_data_l.csv'.format(get_data_path(), course_id)
+            course_run_data = pd.read_csv(path)
+        except Exception:
+            print('model_data.csv does not exist for course: ', course_id)
+            continue
+            # pass                
+        if train is None:
+            train = course_run_data
+        else:
+            train = train.append(course_run_data)
 
     print('Training data done.')
 
     train = train.reset_index(drop=True)
+    train = remove_outliers(train)
     # test = pd.read_csv('{}/{}/model_data.csv'.format(get_data_path(), current_course_id))
     test = pd.read_csv('{}/{}/model_data_l.csv'.format(get_data_path(), current_course_id))
 
@@ -64,7 +78,7 @@ def get_data(current_course_id):
         'user_started_week', 'user_active_previous_week'
     ]
 
-    scaler = StandardScaler()
+    scaler = MinMaxScaler(feature_range=(0, 1))
     scaler.fit(train[X_cols])
 
     X_train = scaler.transform(train[X_cols])
@@ -79,48 +93,34 @@ def get_data(current_course_id):
     return (X_train, y_train, X_test, y_test)
 
 
-# Function to create model, required for KerasClassifier
 def create_model(model_input, hidden_layers_conf=[], name=''):
-    # create model
+    """
+    Create Keras model
+    """
     model = None
     
     for i, layer in enumerate(hidden_layers_conf):
         
         if i == 0:            
-            model = Dense(layer['n_units'])(model_input)            
-                
-        model = BatchNormalization()(model)
-        model = Activation('relu')(model)
-        model = Dropout(layer.get('dropout', 0.2))(model)
+            model = Dense(layer['n_units'], name='Fully_Connected_Input')(model_input)
+        else:
+            model = Dense(layer['n_units'], name='Fully_Connected_{}'.format(i + 1))(model)
+
+        model = BatchNormalization(name='Batch_Normalize_{}'.format(i + 1))(model)
+        model = Activation('relu', name='ReLU_{}'.format(i + 1))(model)
+        model = Dropout(layer.get('dropout', 0.3), name='Dropout_{}'.format(i + 1))(model)
     
-    model = Dense(1)(model)
-    model = BatchNormalization()(model)
-    predictions = Activation('sigmoid')(model)
+    model = Dense(1, name='Output')(model)
+    model = BatchNormalization(name='Batch_Normalize_Output')(model)
+    predictions = Activation('sigmoid', name='Sigmoid')(model)
     
     model = Model(inputs=model_input, outputs=predictions)
     if name:
         model.name = name
 
+    print(model.summary())
+
     return model
-
-
-def compile_and_train(model, x_train, y_train, optimizer='adam', metrics=['accuracy'], num_epochs=20, batch_size=100): 
-    
-    model.compile(loss='binary_crossentropy', optimizer=optimizer, metrics=metrics) 
-    filepath = 'weights/' + model.name + '.{epoch:02d}-{loss:.2f}.hdf5'
-    checkpoint = ModelCheckpoint(
-        filepath, monitor='loss', verbose=0, save_weights_only=True, save_best_only=True, mode='auto', period=1
-    )
-    
-    history = model.fit(x=x_train,
-                        y=y_train, 
-                        batch_size=batch_size, 
-                        epochs=num_epochs, 
-                        verbose=1,
-                        class_weight={ 0: 1., 1: 2 },
-                        callbacks=[checkpoint])
-
-    return history
 
 
 def ensemble_models(models, model_input):
@@ -192,7 +192,8 @@ def run_model(course_id, train, num_epochs, batch_size, positive_upweight, learn
         current_date_string = datetime.strftime(datetime.today(), '%Y-%m-%d')
         model = load_model('model-{}.h5'.format('2018-01-23'))
     else:
-        adam = optimizers.Adam(lr=learning_rate)
+        decay_rate = learning_rate / num_epochs
+        adam = optimizers.Adam(lr=learning_rate, decay=decay_rate)
 
         with open(layers_config_filename, 'r') as f:
             import json
@@ -200,7 +201,7 @@ def run_model(course_id, train, num_epochs, batch_size, positive_upweight, learn
 
         print('Fitting model')
         
-        kfold = StratifiedKFold(n_splits=10, shuffle=True)
+        kfold = StratifiedKFold(n_splits=12, shuffle=True)
         
         for i, (train_ind, val_ind) in enumerate(kfold.split(X_train, y_train)):
 
@@ -208,22 +209,38 @@ def run_model(course_id, train, num_epochs, batch_size, positive_upweight, learn
                                  hidden_layers_conf=layers_conf, 
                                  name='kfold-{}'.format(i))
 
-            model.compile(loss='binary_crossentropy', optimizer=adam, metrics=['acc'])         
-            
-            history = model.fit(x=X_train,
-                                y=y_train, 
+            model.compile(loss='binary_crossentropy', optimizer=adam, metrics=['acc'])
+
+            early_stopping = keras.callbacks.EarlyStopping(monitor='val_loss', 
+                                                           min_delta=0, 
+                                                           patience=2, 
+                                                           verbose=2, 
+                                                           mode='auto')
+            X_val, y_val = X_train[val_ind], y_train[val_ind]
+
+            history = model.fit(x=X_train[train_ind],
+                                y=y_train[train_ind], 
                                 batch_size=batch_size, 
                                 epochs=num_epochs, 
                                 verbose=2,
                                 class_weight={ 0: 1., 1: positive_upweight },
-                                validation_data=(X_train[val_ind], y_train[val_ind]))
+                                validation_data=(X_val, y_val),
+                                callbacks=[early_stopping])
+
+            print('Done Training. Validating')
 
             y_val_pred = np.round(model.predict(X_train[val_ind], batch_size=batch_size))
             y_val_true = y_train[val_ind]
 
             final_recall = metrics.recall_score(y_val_true, y_val_pred)
-            final_acc = metrics.recall_score(y_val_true, y_val_pred)
-            final_score = final_recall - final_acc
+            final_acc = metrics.accuracy_score(y_val_true, y_val_pred)
+            final_score = (final_recall + final_acc) / 2
+
+            print('**METRICS**')
+            print("Baseline Accuracy, all 1: ", metrics.accuracy_score(y_val_true, np.ones(y_val_true.shape)))
+            print("Model Scores: ", final_recall, final_acc, final_score)
+            print("Conf Matrix: \n", metrics.confusion_matrix(y_val_true, y_val_pred))
+            print("Cohen's Kappa: ", metrics.cohen_kappa_score(y_val_true, y_val_pred))
 
             if final_score > best_model_score:
                 best_model_score = final_score
@@ -231,8 +248,33 @@ def run_model(course_id, train, num_epochs, batch_size, positive_upweight, learn
 
             models.append(model)
 
+            print('SAVING MODEL...')
+            try:
+                print('Try save for kfold: {}'.format(i))
+                model.save(os.path.join(outputdir, 'model_{}.h5'.format(i)))
+                print('Success')
+            except:
+                print('FAILED TO SAVE MODEL')
+
+            # print('Contained example (K Nearest Neighbors)')
+            
+            # from sklearn.neighbors import KNeighborsClassifier
+            # neigh = KNeighborsClassifier(n_neighbors=3)
+            # neigh.fit(X_train[train_ind], y_train[train_ind]) 
+            # kneigh_preds = neigh.predict(X_train[val_ind])
+
+            # kfinal_recall = metrics.recall_score(y_val_true, kneigh_preds)
+            # kfinal_acc = metrics.accuracy_score(y_val_true, kneigh_preds)
+            # kfinal_score = (final_recall + final_acc) / 2
+            # print('**METRICS K NEIGHBORS**')
+            # print("K Accuracy, Recall, Final: ", kfinal_recall, kfinal_acc, kfinal_score)
+            # print("K Conf Matrix: \n", metrics.confusion_matrix(y_val_true, kneigh_preds))
+            # print("K Cohen's Kappa: ", metrics.cohen_kappa_score(y_val_true, kneigh_preds))
+
+
+    print('Saving best model...')
     try:        
-        best_model.save(os.path.join(outputdir, 'model.h5'))
+        best_model.save(os.path.join(outputdir, 'best_model.h5'))
     except:
         print('FAILED TO SAVE MODEL')
 
